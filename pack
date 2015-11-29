@@ -1,0 +1,5 @@
+#!/bin/bash
+
+rm game.love
+zip -r game.zip *
+mv game.zip game.love
