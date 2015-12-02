@@ -1,10 +1,6 @@
---
---  Platformer Tutorial
---
-
 local Loader = require "AdvTiledLoader/Loader"
 local Camera = require "hump.camera"
--- set the path to the Tiled map files
+
 Loader.path = "maps/"
 
 local hero
@@ -15,8 +11,8 @@ local startY
 local translateMapBody = 8
 
 function love.load()
-	love.window.setMode(0, 0, {fullscreen=true, fullscreentype="desktop", vsync=false})
-	map = Loader.load("level1.tmx")
+	--love.window.setMode(0, 0, {fullscreen=true, fullscreentype="desktop", vsync=true})
+	map = Loader.load("level4.tmx")
 	
 	world = love.physics.newWorld(0, 200, true)
 		world:setCallbacks(beginContact, endContact, preSolve, postSolve)
@@ -31,7 +27,7 @@ function love.load()
 
 	setupHero(startX, startY)
 	cam = Camera(startX, startY)
-	cam:zoomTo(6)
+	cam:zoomTo(4)
 end
 
 function beginContact(a, b, coll)
@@ -119,7 +115,11 @@ end
 function love.draw()
 	cam:attach()
 	map:draw()
-	love.graphics.polygon("line", hero.b:getWorldPoints(hero.s:getPoints()))
+	if not hero.kamelion then
+		love.graphics.draw(hero.normalImage, hero.b:getX(), hero.b:getY(), hero.b:getAngle(),  1, 1, hero.normalImage:getWidth()/2, hero.normalImage:getHeight()/2)
+	else
+		love.graphics.draw(hero.kamelionImage, hero.b:getX(), hero.b:getY(), hero.b:getAngle(),  1, 1, hero.kamelionImage:getWidth()/2, hero.kamelionImage:getHeight()/2)
+	end
 	cam:detach()
 end
 
@@ -137,6 +137,8 @@ function setupHero(x,y)
 	hero.onAir = false
 	hero.kamelion = false
 	hero.adopt = false
+	hero.normalImage = love.graphics.newImage("img/player.png")
+	hero.kamelionImage = love.graphics.newImage("img/kamelion.png")
 end
 
 function handleInput(dt)
@@ -148,14 +150,14 @@ function handleInput(dt)
         end
     elseif love.keyboard.isDown("left") then
         local x, y = hero.b:getLinearVelocity()
-        if x < hero.xSpeedLimit then
+        if x > -hero.xSpeedLimit then
         	hero.b:applyForce(-100, 0)
         	hero.b:setLinearVelocity(x, y)
         end
     end
     if love.keyboard.isDown("up") and not hero.onAir then
     	hero.onAir = true
-        hero.b:applyForce(0, -12000)
+        hero.b:applyForce(0, -3000)
     end
 	if love.keyboard.isDown("lctrl", "rctrl") then
 		hero.kamelion = true
@@ -165,6 +167,9 @@ function handleInput(dt)
 			hero.adopt = true
 			hero.kamelion = false
 		end
+	end
+	if love.keyboard.isDown("escape") then
+		love.event.quit()
 	end
 end
 
