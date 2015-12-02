@@ -1,5 +1,5 @@
 --[[
-Copyright (c) 2010 Matthias Richter
+Copyright (c) 2010-2013 Matthias Richter
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -24,17 +24,19 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ]]--
 
--- somewhat speed optimized version of hump.vector
-
-local sqrt, cos, sin = math.sqrt, math.cos, math.sin
+local assert = assert
+local sqrt, cos, sin, atan2 = math.sqrt, math.cos, math.sin, math.atan2
 
 local vector = {}
 vector.__index = vector
 
 local function new(x,y)
-	local v = {x = x or 0, y = y or 0}
-	setmetatable(v, vector)
-	return v
+	return setmetatable({x = x or 0, y = y or 0}, vector)
+end
+local zero = new(0,0)
+
+local function isvector(v)
+	return type(v) == 'table' and type(v.x) == 'number' and type(v.y) == 'number'
 end
 
 function vector:clone()
@@ -54,10 +56,12 @@ function vector.__unm(a)
 end
 
 function vector.__add(a,b)
+	assert(isvector(a) and isvector(b), "Add: wrong argument types (<vector> expected)")
 	return new(a.x+b.x, a.y+b.y)
 end
 
 function vector.__sub(a,b)
+	assert(isvector(a) and isvector(b), "Sub: wrong argument types (<vector> expected)")
 	return new(a.x-b.x, a.y-b.y)
 end
 
@@ -67,11 +71,13 @@ function vector.__mul(a,b)
 	elseif type(b) == "number" then
 		return new(b*a.x, b*a.y)
 	else
+		assert(isvector(a) and isvector(b), "Mul: wrong argument types (<vector> or <number> expected)")
 		return a.x*b.x + a.y*b.y
 	end
 end
 
 function vector.__div(a,b)
+	assert(isvector(a) and type(b) == "number", "wrong argument types (expected <vector> / <number>)")
 	return new(a.x / b, a.y / b)
 end
 
@@ -88,6 +94,7 @@ function vector.__le(a,b)
 end
 
 function vector.permul(a,b)
+	assert(isvector(a) and isvector(b), "permul: wrong argument types (<vector> expected)")
 	return new(a.x*b.x, a.y*b.y)
 end
 
@@ -100,22 +107,32 @@ function vector:len()
 end
 
 function vector.dist(a, b)
+	assert(isvector(a) and isvector(b), "dist: wrong argument types (<vector> expected)")
 	local dx = a.x - b.x
 	local dy = a.y - b.y
-	return sqrt( dx*dx + dy*dy )
+	return sqrt(dx * dx + dy * dy)
 end
 
-function vector:normalize_inplace()
-	local l = sqrt(self.x * self.x + self.y * self.y)
-	self.x, self.y = self.x / l, self.y / l
+function vector.dist2(a, b)
+	assert(isvector(a) and isvector(b), "dist: wrong argument types (<vector> expected)")
+	local dx = a.x - b.x
+	local dy = a.y - b.y
+	return (dx * dx + dy * dy)
+end
+
+function vector:normalizeInplace()
+	local l = self:len()
+	if l > 0 then
+		self.x, self.y = self.x / l, self.y / l
+	end
 	return self
 end
 
 function vector:normalized()
-	return self / sqrt(self.x * self.x + self.y * self.y)
+	return self:clone():normalizeInplace()
 end
 
-function vector:rotate_inplace(phi)
+function vector:rotateInplace(phi)
 	local c, s = cos(phi), sin(phi)
 	self.x, self.y = c * self.x - s * self.y, s * self.x + c * self.y
 	return self
@@ -131,21 +148,44 @@ function vector:perpendicular()
 end
 
 function vector:projectOn(v)
+	assert(isvector(v), "invalid argument: cannot project vector on " .. type(v))
 	-- (self * v) * v / v:len2()
 	local s = (self.x * v.x + self.y * v.y) / (v.x * v.x + v.y * v.y)
 	return new(s * v.x, s * v.y)
 end
 
 function vector:mirrorOn(v)
-	-- 2 * self:projectOn(other) - self
+	assert(isvector(v), "invalid argument: cannot mirror vector on " .. type(v))
+	-- 2 * self:projectOn(v) - self
 	local s = 2 * (self.x * v.x + self.y * v.y) / (v.x * v.x + v.y * v.y)
 	return new(s * v.x - self.x, s * v.y - self.y)
 end
 
-function vector:cross(other)
-	return self.x * other.y - self.y * other.x
+function vector:cross(v)
+	assert(isvector(v), "cross: wrong argument types (<vector> expected)")
+	return self.x * v.y - self.y * v.x
+end
+
+-- ref.: http://blog.signalsondisplay.com/?p=336
+function vector:trimInplace(maxLen)
+	local s = maxLen * maxLen / self:len2()
+	s = (s > 1 and 1) or math.sqrt(s)
+	self.x, self.y = self.x * s, self.y * s
+	return self
+end
+
+function vector:angleTo(other)
+	if other then
+		return atan2(self.y, self.x) - atan2(other.y, other.x)
+	end
+	return atan2(self.y, self.x)
+end
+
+function vector:trimmed(maxLen)
+	return self:clone():trimInplace(maxLen)
 end
 
 
 -- the module
-return setmetatable({new = new}, {__call = function(_, ...) return new(...) end})
+return setmetatable({new = new, isvector = isvector, zero = zero},
+	{__call = function(_, ...) return new(...) end})
