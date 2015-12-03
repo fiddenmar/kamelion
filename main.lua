@@ -1,31 +1,29 @@
 local Loader = require "AdvTiledLoader/Loader"
 local Camera = require "hump.camera"
 
+require "globals"
+require "player"
+
 Loader.path = "maps/"
 
-local hero
+local player
 local allSolidTiles
 local startX
 local startY
 
-local translateMapBody = 8
-
 function love.load()
-	--love.window.setMode(0, 0, {fullscreen=true, fullscreentype="desktop", vsync=true})
-	map = Loader.load("level4.tmx")
+	--love.window.setMode(0, 0, {fullscreen=true, fullscreentype="desktop", vsync=true, resizable=false})
+	map = Loader.load("level5.tmx")
 	
 	world = love.physics.newWorld(0, 200, true)
 		world:setCallbacks(beginContact, endContact, preSolve, postSolve)
  
-    text       = ""
-    persisting = 0 
-
 	translateToCenterX = love.graphics:getWidth() / 2 - map.width*16 / 2
     translateToCenterY = love.graphics:getHeight() / 2 - map.height*16 / 2
 	
 	allSolidTiles = findTiles(map)
 
-	setupHero(startX, startY)
+	player = Player.create(startX, startY)
 	cam = Camera(startX, startY)
 	cam:zoomTo(4)
 end
@@ -45,7 +43,7 @@ function beginContact(a, b, coll)
 
 	x, y = playerObject:getBody():getLinearVelocity()
 	if playerObject:getBody():getY() < tileObject:getBody():getY() and y >= 0 then
-		hero.onAir = false
+		player.onAir = false
 	end
 
 	if tileObject:getCategory() == 2 then
@@ -53,7 +51,7 @@ function beginContact(a, b, coll)
 	end
 
 	if tileObject:getCategory() == 7 then
-		hero.deleting = true
+		player.deleting = true
 		return
 	end
 
@@ -72,12 +70,12 @@ function postSolve(a, b, coll, normalimpulse1, tangentimpulse1, normalimpulse2, 
 end
 
 function adoption(f)
-	if hero.adopt then
+	if player.adopt then
 		if f:getUserData() ~= "player" then
 			local category = f:getCategory()
 			if category > 2 and category <= 5 then
-				hero.adopt = false
-				hero.f:setMask(1, category)
+				player.adopt = false
+				player.f:setMask(1, category)
 				return 0
 			end
 		end
@@ -87,27 +85,18 @@ end
 
 function love.update(dt)
 	handleInput(dt)
-	if hero.kamelion then
-		hero.f:setMask(1, 3, 4, 5)
+	local alive, x, y = player:update()
+	if not alive then
+		player = Player.create(x, y)
 	end
 
-	coord1 = 0
-	coord2 = 0
-	coord3 = 0
-	coord4 = 0
-	if hero.adopt then	
-		coord1, coord2, coord3, coord4 = hero.f:getBoundingBox()
+	if player.adopt then	
+		local coord1, coord2, coord3, coord4 = player:getAABB()
 		world:rayCast(coord1, coord2, coord3, coord4, adoption)
 	end
 
-	local heroX, heroY = hero.b:getWorldCenter()
-	cam:lockPosition(heroX, heroY)
-
-	if hero.deleting then
-		hero.b:destroy()
-		hero = nil
-		setupHero(startX, startY)
-	end
+	local posX, posY = player:getPosition()
+	cam:lockPosition(posX, posY)
 
 	world:update(dt)
 end
@@ -115,59 +104,12 @@ end
 function love.draw()
 	cam:attach()
 	map:draw()
-	if not hero.kamelion then
-		love.graphics.draw(hero.normalImage, hero.b:getX(), hero.b:getY(), hero.b:getAngle(),  1, 1, hero.normalImage:getWidth()/2, hero.normalImage:getHeight()/2)
-	else
-		love.graphics.draw(hero.kamelionImage, hero.b:getX(), hero.b:getY(), hero.b:getAngle(),  1, 1, hero.kamelionImage:getWidth()/2, hero.kamelionImage:getHeight()/2)
-	end
+	player:draw()
 	cam:detach()
 end
 
-function setupHero(x,y)
-	
-	hero = {}
-        hero.b = love.physics.newBody(world, x + translateMapBody, y + translateMapBody, "dynamic")
-        hero.b:setMass(100) 
-        hero.s = love.physics.newRectangleShape(16, 16)
-        hero.f = love.physics.newFixture(hero.b, hero.s)
-        hero.f:setUserData("player")
-        hero.f:setMask(1, 3)
-    hero.deleting = false
-	hero.xSpeedLimit = 100
-	hero.onAir = false
-	hero.kamelion = false
-	hero.adopt = false
-	hero.normalImage = love.graphics.newImage("img/player.png")
-	hero.kamelionImage = love.graphics.newImage("img/kamelion.png")
-end
-
 function handleInput(dt)
-	if love.keyboard.isDown("right") then
-		local x, y = hero.b:getLinearVelocity()
-        if x < hero.xSpeedLimit then
-        	hero.b:applyForce(100, 0)
-        	hero.b:setLinearVelocity(x, y)
-        end
-    elseif love.keyboard.isDown("left") then
-        local x, y = hero.b:getLinearVelocity()
-        if x > -hero.xSpeedLimit then
-        	hero.b:applyForce(-100, 0)
-        	hero.b:setLinearVelocity(x, y)
-        end
-    end
-    if love.keyboard.isDown("up") and not hero.onAir then
-    	hero.onAir = true
-        hero.b:applyForce(0, -3000)
-    end
-	if love.keyboard.isDown("lctrl", "rctrl") then
-		hero.kamelion = true
-		hero.adopt = false
-	else
-		if hero.kamelion then
-			hero.adopt = true
-			hero.kamelion = false
-		end
-	end
+	player:handleInput(dt)
 	if love.keyboard.isDown("escape") then
 		love.event.quit()
 	end
@@ -197,7 +139,7 @@ function findTiles(map)
 					end
 
 					local static = {}
-				        static.b = love.physics.newBody(world, (tileX-1)*16 + translateMapBody, (tileY-1)*16 + translateMapBody, "static")
+				        static.b = love.physics.newBody(world, (tileX-1)*16 + Globals.getInstance().getTranslation(), (tileY-1)*16 + Globals.getInstance().getTranslation(), "static")
 				        static.s = love.physics.newRectangleShape(16, 16)
 				        static.f = love.physics.newFixture(static.b, static.s)
 				        static.f:setUserData(ground_type)
