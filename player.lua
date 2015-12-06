@@ -8,7 +8,7 @@ function Player.create(x, y)
    	setmetatable(player, Player)
         player.b = love.physics.newBody(world, x + Globals.getInstance().getTranslation(), y + Globals.getInstance().getTranslation(), "dynamic")
         player.b:setMass(100) 
-        player.s = love.physics.newRectangleShape(16, 16)
+        player.s = love.physics.newRectangleShape(Globals.getInstance().getTileSize(), Globals.getInstance().getTileSize())
         player.f = love.physics.newFixture(player.b, player.s)
         player.f:setUserData("player")
         player.f:setMask(1, 3)
@@ -83,4 +83,8 @@ function Player:update()
 		return false, x, y
 	end
 	return true, 0, 0
+end
+
+function Player:setMask(category)
+	self.f:setMask(1, category)
 end

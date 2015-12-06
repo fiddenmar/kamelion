@@ -11,6 +11,9 @@ function Globals.getInstance()
 	    _instance.getTranslation = function()
 	    	return 8
 	    end
+        _instance.getTileSize = function()
+            return 16
+        end
     end
  
     return _instance
