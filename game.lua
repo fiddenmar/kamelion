@@ -11,7 +11,7 @@ local allSolidTiles
 
 game = {}
 
-function game:init()
+function game:enter()
     map = Loader.load("level5.tmx")
 	
 	world = love.physics.newWorld(0, 200, true)
@@ -21,12 +21,14 @@ function game:init()
     translateToCenterY = love.graphics:getHeight() / 2 - map.height*Globals.getInstance().getTileSize() / 2
 	
 	allSolidTiles, startX, startY = findTiles(map)
-	startX = 50
-	startY = 50
 
 	player = Player.create(startX, startY)
 	cam = Camera(startX, startY)
 	cam:zoomTo(4)
+end
+
+function gameWon()
+	Gamestate.switch(win)
 end
 
 function beginContact(a, b, coll)
@@ -48,7 +50,7 @@ function beginContact(a, b, coll)
 	end
 
 	if tileObject:getCategory() == 2 then
-		love.event.quit()
+		gameWon()
 	end
 
 	if tileObject:getCategory() == 7 then

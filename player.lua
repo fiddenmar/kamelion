@@ -42,7 +42,7 @@ function Player:handleInput(dt)
     	self.onAir = true
         self.b:applyForce(0, -3000)
     end
-	if love.keyboard.isDown("lctrl", "rctrl") then
+	if love.keyboard.isDown(" ", "space") then
 		self.kamelion = true
 		self.adopt = false
 	else
