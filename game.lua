@@ -12,6 +12,7 @@ local allSolidTiles
 game = {}
 
 function game:enter()
+	love.graphics.setBackgroundColor( 0, 0, 0, 255 )
     map = Loader.load("level5.tmx")
 	
 	world = love.physics.newWorld(0, 200, true)
